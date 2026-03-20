@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>资源猎手</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+SC:wght@400;700&display=swap');
+:root{
+  --bg:#0d0f14;--bg2:#141820;--bg3:#1c2130;
+  --border:#2a3448;--accent:#00e5ff;--accent2:#ff6b35;
+  --green:#39ff14;--yellow:#ffd700;--red:#ff3355;
+  --text:#c8d8f0;--dim:#5a7090;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans SC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{width:520px;min-height:480px;max-height:700px;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;overflow:hidden;display:flex;flex-direction:column;}
+
+.header{background:var(--bg2);border-bottom:2px solid var(--accent);padding:9px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.logo{font-family:var(--mono);font-size:17px;color:var(--accent);letter-spacing:2px;text-shadow:0 0 10px var(--accent);}
+.logo span{color:var(--accent2);}
+.tagline{font-family:var(--mono);font-size:10px;color:var(--dim);}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dim);transition:all .3s;flex-shrink:0;}
+.dot.scanning{background:var(--yellow);box-shadow:0 0 8px var(--yellow);animation:pulse .7s infinite;}
+.dot.ready{background:var(--green);box-shadow:0 0 6px var(--green);}
+.dot.downloading{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse .7s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+.url-bar{background:var(--bg3);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.url-label{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap;}
+.url-val{font-family:var(--mono);font-size:10px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.url-val.crawling{color:var(--yellow);}
+
+.ctrl-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:var(--mono);font-size:11px;cursor:pointer;border-radius:2px;transition:all .15s;letter-spacing:.5px;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.06);}
+.btn:active{transform:scale(.97);}
+.btn.primary{border-color:var(--accent);color:var(--accent);}
+.btn.success{border-color:var(--green);color:var(--green);}
+.btn.stop{border-color:var(--red);color:var(--red);}
+.btn.danger{border-color:var(--red);color:var(--red);}
+.btn:disabled{opacity:.3;cursor:default;pointer-events:none;}
+.sep{width:1px;height:22px;background:var(--border);}
+.depth-label{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap;}
+.depth-input{width:42px;background:var(--bg3);border:1px solid var(--border);color:var(--accent);font-family:var(--mono);font-size:12px;text-align:center;padding:4px 0;border-radius:2px;outline:none;}
+.depth-input:focus{border-color:var(--accent);}
+
+.progress-area{background:var(--bg3);border-bottom:1px solid var(--border);padding:7px 14px;flex-shrink:0;display:none;}
+.progress-area.show{display:block;}
+.progress-top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:5px;}
+.progress-top .lbl{color:var(--text);}
+.bar-wrap{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:4px;}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));width:0%;transition:width .3s;}
+.progress-sub{font-family:var(--mono);font-size:9px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.toolbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 14px;display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.search-wrap{flex:1;display:flex;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:2px;padding:0 8px;gap:5px;}
+.search-wrap input{background:transparent;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:11px;width:100%;padding:4px 0;}
+.search-wrap input::placeholder{color:var(--dim);}
+
+.filter-bar{background:var(--bg);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;gap:5px;flex-shrink:0;}
+.tag{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border:1px solid var(--border);border-radius:2px;font-family:var(--mono);font-size:10px;cursor:pointer;white-space:nowrap;color:var(--dim);transition:all .15s;}
+.tag.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.08);}
+.tag .cnt{background:var(--border);border-radius:2px;padding:0 4px;font-size:9px;min-width:16px;text-align:center;}
+.tag.active .cnt{background:rgba(0,229,255,.2);}
+
+.list-header{display:flex;align-items:center;padding:5px 14px;background:var(--bg2);border-bottom:1px solid var(--border);gap:8px;flex-shrink:0;}
+.list-header label{display:flex;align-items:center;gap:5px;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--dim);}
+.list-header input[type=checkbox]{accent-color:var(--accent);cursor:pointer;}
+.stats{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim);}
+.sel-n{color:var(--accent);font-weight:bold;}
+
+.resource-list{flex:1;overflow-y:auto;overflow-x:hidden;min-height:160px;}
+.resource-list::-webkit-scrollbar{width:5px;}
+.resource-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.resource-item{display:flex;align-items:center;padding:6px 14px;border-bottom:1px solid rgba(42,52,72,.5);gap:9px;cursor:default;transition:background .1s;}
+.resource-item:hover{background:var(--bg3);}
+.resource-item.selected{background:rgba(0,229,255,.05);border-left:2px solid var(--accent);}
+.resource-item input[type=checkbox]{accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+.item-icon{font-size:15px;flex-shrink:0;}
+.item-info{flex:1;overflow:hidden;}
+.item-name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-url{font-family:var(--mono);font-size:9px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.item-badge{font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:2px;flex-shrink:0;border:1px solid;}
+.type-image{color:#64b5f6;border-color:#64b5f660;}
+.type-document{color:#ffd54f;border-color:#ffd54f60;}
+.type-archive{color:#ff8a65;border-color:#ff8a6560;}
+
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;color:var(--dim);gap:12px;}
+.empty-icon{font-size:40px;opacity:.4;}
+.empty-text{font-family:var(--mono);font-size:11px;text-align:center;line-height:2.2;}
+
+.statusbar{background:var(--bg2);border-top:1px solid var(--border);padding:4px 14px;flex-shrink:0;}
+.statusbar-text{font-family:var(--mono);font-size:10px;color:var(--dim);}
+.statusbar-text.ok{color:var(--green);}
+.statusbar-text.err{color:var(--red);}
+.statusbar-text.warn{color:var(--yellow);}
+
+.skeleton{height:38px;background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;margin:4px 14px;border-radius:2px;}
+@keyframes shimmer{0%{background-position:200%0}100%{background-position:-200%0}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">RES<span>∞</span>HUNT</div>
+    <div class="tagline">RESOURCE HUNTER v4.0</div>
+  </div>
+  <div class="header-right">
+    <div class="dot" id="dot"></div>
+    <span id="dotLabel" style="font-family:var(--mono);font-size:10px;color:var(--dim)">待命</span>
+  </div>
+</div>
+
+<div class="url-bar">
+  <span class="url-label">URL//</span>
+  <span class="url-val" id="urlVal">—</span>
+</div>
+
+<div class="ctrl-bar">
+  <button class="btn primary" id="btnScan">🔍 拓扑资源</button>
+  <div class="sep"></div>
+  <span class="depth-label">下探</span>
+  <input class="depth-input" type="number" id="depthInput" value="0" min="0" max="5">
+  <span class="depth-label">层</span>
+  <div class="sep"></div>
+  <button class="btn stop" id="btnStop" disabled>■ 停止</button>
+</div>
+
+<div class="progress-area" id="progressArea">
+  <div class="progress-top">
+    <span class="lbl" id="progressLabel">扫描中...</span>
+    <span id="progressCount"></span>
+  </div>
+  <div class="bar-wrap"><div class="bar-fill" id="progressFill"></div></div>
+  <div class="progress-sub" id="progressSub"></div>
+</div>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <span style="color:var(--dim);font-size:12px">⌕</span>
+    <input type="text" id="searchInput" placeholder="过滤文件名 / URL..." autocomplete="off">
+  </div>
+  <div class="sep"></div>
+  <button class="btn success" id="btnDownload" disabled>⬇ 下载选中</button>
+  <button class="btn danger"  id="btnClear"    disabled>✕ 清空</button>
+</div>
+
+<div class="filter-bar" id="filterBar"></div>
+
+<div class="list-header">
+  <label><input type="checkbox" id="checkAll"> 全选</label>
+  <span class="stats">共 <span id="totalCount">0</span> 项 &nbsp;|&nbsp; 已选 <span class="sel-n" id="selCount">0</span> 项</span>
+</div>
+
+<div class="resource-list" id="resourceList">
+  <div class="empty-state">
+    <div class="empty-icon">📡</div>
+    <div class="empty-text">设置下探层数，点击「拓扑资源」<br>扫描图片 / 文档 / 压缩包<br>勾选后「下载选中」</div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span class="statusbar-text" id="statusbarText">就绪</span>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
