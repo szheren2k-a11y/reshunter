@@ -9,7 +9,8 @@ var state = {
   activeFilter: 'all',
   searchQuery:  '',
   scanning:     false,
-  downloading:  false
+  downloading:  false,
+  directoryName: ''
 };
 
 var $ = function(id) { return document.getElementById(id); };
@@ -60,6 +61,89 @@ function setProgress(label, pct, count, sub) {
   els.progressFill.style.width  = (pct || 0) + '%';
   els.progressCount.textContent = count || '';
   els.progressSub.textContent   = sub   || '';
+}
+
+function sanitizeName(name) {
+  return String(name || 'untitled')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.]+|[\s.]+$/g, '')
+    .substring(0, 160) || 'untitled';
+}
+
+function splitName(filename) {
+  var safe = sanitizeName(filename);
+  var dot  = safe.lastIndexOf('.');
+  if (dot <= 0 || dot === safe.length - 1) return { base: safe, ext: '' };
+  return { base: safe.slice(0, dot), ext: safe.slice(dot) };
+}
+
+function buildDownloadName(item, usedNames) {
+  var preferred = item.name || (state.pageTitle || 'untitled');
+  var parts = splitName(preferred);
+  var key = parts.base.toLowerCase() + parts.ext.toLowerCase();
+  usedNames[key] = (usedNames[key] || 0) + 1;
+  if (usedNames[key] === 1) return parts.base + parts.ext;
+  return parts.base + '_' + usedNames[key] + parts.ext;
+}
+
+async function pickDirectory() {
+  if (typeof window.showDirectoryPicker !== 'function') {
+    throw new Error('当前环境不支持文件夹选择器');
+  }
+  return window.showDirectoryPicker({ mode: 'readwrite' });
+}
+
+async function fetchResourceBlob(url) {
+  var resp = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    redirect: 'follow'
+  });
+  if (!resp.ok) {
+    throw new Error('HTTP ' + resp.status);
+  }
+  return resp.blob();
+}
+
+async function saveBlobToDirectory(dirHandle, filename, blob) {
+  var fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+  var writable = await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+async function downloadViaDirectoryPicker(items) {
+  var dirHandle = await pickDirectory();
+  state.directoryName = dirHandle.name || '';
+  var usedNames = {};
+  var successes = 0;
+  var failures = [];
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var filename = buildDownloadName(item, usedNames);
+    try {
+      var blob = await fetchResourceBlob(item.url);
+      await saveBlobToDirectory(dirHandle, filename, blob);
+      successes++;
+      setProgress('下载中...', Math.round((i + 1) / items.length * 100),
+        (i + 1) + ' / ' + items.length,
+        '✓ ' + filename);
+    } catch (e) {
+      failures.push({ item: item, error: e });
+      setProgress('下载中...', Math.round((i + 1) / items.length * 100),
+        (i + 1) + ' / ' + items.length,
+        '✗ ' + filename + ' · ' + e.message);
+    }
+  }
+
+  return {
+    success: failures.length === 0,
+    total: items.length,
+    successCount: successes,
+    failures: failures
+  };
 }
 
 function applyFilter() {
@@ -225,13 +309,11 @@ els.btnScan.addEventListener('click', function() {
           var subCount = (resp.selectLinks || []).length;
 
           if (subCount === 0) {
-            // 没有子页面，直接用当前页结果
             var all = (resp.staticResources || []).concat(resp.opwinResources || []);
             finishScan(all);
             return;
           }
 
-          // 有子页面，交给 background 下探
           setProgress('扫描子页面中...', 0, '0 / ' + subCount + ' 个子页面', '');
           chrome.runtime.sendMessage(
             { action: 'fullScan', rootResp: resp },
@@ -286,28 +368,57 @@ els.btnClear.addEventListener('click', function() {
 });
 
 // ── 下载选中 ──
-els.btnDownload.addEventListener('click', function() {
+els.btnDownload.addEventListener('click', async function() {
   var selected = state.resources.filter(function(r) { return r.selected; });
   if (!selected.length) return;
 
   state.downloading = true;
+  state.directoryName = '';
   els.btnDownload.disabled = true;
   showProgress(true);
   setDot('downloading', '下载中');
-  setProgress('等待选择文件夹...', 0, '0 / ' + selected.length, '请在弹出的对话框中选择保存位置');
+  setProgress('等待选择文件夹...', 0, '0 / ' + selected.length, '请在弹出的对话框中选择本地文件夹');
 
-  chrome.runtime.sendMessage({
-    action:    'downloadItems',
-    items:     selected,
-    pageTitle: state.pageTitle
-  }, function(result) {
+  try {
+    var result = await downloadViaDirectoryPicker(selected);
     state.downloading = false;
     updateCounts();
     showProgress(false);
     setDot('ready', '就绪');
-    setBar(result && result.success ? '下载完成 · 共 ' + result.total + ' 个文件' : '下载出现错误',
-           result && result.success ? 'ok' : 'err');
-  });
+
+    if (result.success) {
+      setBar('下载完成 · 共 ' + result.total + ' 个文件' + (state.directoryName ? ' · 目录: ' + state.directoryName : ''), 'ok');
+    } else {
+      setBar('部分下载失败 · 成功 ' + result.successCount + ' / ' + result.total, 'warn');
+    }
+  } catch (e) {
+    state.downloading = false;
+    updateCounts();
+    showProgress(false);
+    setDot('ready', '就绪');
+
+    if (e && e.name === 'AbortError') {
+      setBar('已取消选择文件夹', 'warn');
+      return;
+    }
+
+    setBar('文件夹下载失败，回退到系统下载：' + e.message, 'warn');
+    showProgress(true);
+    setProgress('等待系统保存对话框...', 0, '0 / ' + selected.length, '当前环境不支持文件夹选择器，改用浏览器下载');
+
+    chrome.runtime.sendMessage({
+      action:    'downloadItems',
+      items:     selected,
+      pageTitle: state.pageTitle
+    }, function(result) {
+      state.downloading = false;
+      updateCounts();
+      showProgress(false);
+      setDot('ready', '就绪');
+      setBar(result && result.success ? '下载完成 · 共 ' + result.total + ' 个文件' : '下载出现错误',
+             result && result.success ? 'ok' : 'err');
+    });
+  }
 });
 
 // ── 后台推送 ──

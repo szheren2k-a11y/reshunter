@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>子页 A</title>
+  <script>
+    function opwin(url) {
+      console.log('opwin called:', url);
+      return false;
+    }
+  </script>
+</head>
+<body>
+  <h1>子页 A</h1>
+  <p>URL 参数中的 <code>id</code> 仅用于验证扩展拼接逻辑，本页内容不依赖该参数。</p>
+  <a href="#" onclick="return opwin('assets/child-a-attachment.pdf');">子页 A 附件 PDF</a>
+  <a href="#" onclick="return opwin('assets/child-a-form.docx');">子页 A 附件 Word</a>
+  <a href="assets/child-a-image.jpg">子页 A 图片链接</a>
+</body>
+</html>

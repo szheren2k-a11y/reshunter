@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Resource Hunter 测试首页</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; line-height: 1.6; }
+    .card { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .links a { display: inline-block; margin: 6px 12px 6px 0; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; }
+  </style>
+  <script>
+    function SelectClick(id, title) {
+      console.log('SelectClick called:', id, title);
+      return false;
+    }
+    function opwin(url) {
+      console.log('opwin called:', url);
+      return false;
+    }
+  </script>
+</head>
+<body>
+  <h1>Resource Hunter 测试首页</h1>
+  <p>这个页面用于测试扩展是否可以：</p>
+  <ol>
+    <li>在当前页识别 <code>SelectClick(...)</code>。</li>
+    <li>打开子页面并扫描 <code>opwin(...)</code> 附件。</li>
+    <li>识别普通静态链接里的 PDF / Word / Excel / 图片 / 压缩包资源。</li>
+    <li>勾选资源并下载到用户选择的本地文件夹。</li>
+  </ol>
+
+  <div class="card">
+    <h2>1. SelectClick 子页面入口</h2>
+    <div class="links">
+      <a href="child-a.html#sectionA" onclick="return SelectClick('notice-001', '子页A');">打开子页 A</a>
+      <a href="child-b.html#sectionB" onclick="return SelectClick('notice-002', '子页B');">打开子页 B</a>
+    </div>
+    <p>扩展应从上述节点拼出 <code>child-a.html?id=notice-001</code> 和 <code>child-b.html?id=notice-002</code>。</p>
+  </div>
+
+  <div class="card">
+    <h2>2. 当前页静态资源</h2>
+    <div class="links">
+      <a href="assets/root-report.pdf">首页 PDF</a>
+      <a href="assets/root-spec.docx">首页 Word</a>
+      <a href="assets/root-sheet.xlsx">首页 Excel</a>
+      <a href="assets/root-bundle.zip">首页压缩包</a>
+      <a href="assets/preview.jpg">首页图片</a>
+    </div>
+    <img src="assets/preview.jpg" alt="预览图" width="180">
+  </div>
+
+  <div class="card">
+    <h2>3. 当前页 opwin 附件</h2>
+    <div class="links">
+      <a href="#" onclick="return opwin('assets/root-opwin.pdf');">opwin PDF</a>
+      <a href="#" onclick="return opwin('assets/root-opwin.doc');">opwin Word</a>
+    </div>
+  </div>
+</body>
+</html>
