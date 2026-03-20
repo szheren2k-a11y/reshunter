@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>子页 B</title>
+  <script>
+    function opwin(url) {
+      console.log('opwin called:', url);
+      return false;
+    }
+  </script>
+</head>
+<body>
+  <h1>子页 B</h1>
+  <ul>
+    <li><a href="#" onclick="return opwin('assets/child-b-manual.pdf');">子页 B 手册 PDF</a></li>
+    <li><a href="#" onclick="return opwin('assets/child-b-contract.doc');">子页 B 合同 DOC</a></li>
+    <li><a href="assets/child-b-archive.zip">子页 B 压缩包</a></li>
+    <li><a href="assets/child-b-sheet.xlsx">子页 B Excel</a></li>
+  </ul>
+</body>
+</html>
